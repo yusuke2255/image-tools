@@ -65,25 +65,24 @@ class ResizeExecutor {
         final Predicate<File> isTarget = isTarget(size);
         if (target.isDirectory()) {
             Function<File, ResizeOrder> toOrders = toOrders(target, dest, size);
-            return FileUtil.extractFiles(target).stream().filter(isTarget).map(toOrders).collect(Collectors.toList());
+            return FileUtil.extractFiles(target)
+                    .stream()
+                    .parallel()
+                    .filter(isTarget)
+                    .map(toOrders)
+                    .collect(Collectors.toList());
         } else {
-            return Collections.singletonList(new ResizeOrder(target, dest, size));
+            if (isTarget.test(target)) {
+                return Collections.singletonList(new ResizeOrder(target, dest, size));
+            }
+
+            return Collections.emptyList();
         }
     }
 
     private Function<File, ResizeOrder> toOrders(File target, File dest, int size) {
         return (f) -> {
-            String relativePath = f.getAbsolutePath().replaceFirst(target.getAbsolutePath(), "");
-            if (relativePath.startsWith("/")) {
-                // /foo/bar/image.jpg => foo/bar/image.jpg
-                relativePath = relativePath.replaceFirst("/", "");
-            }
-
-            String convertedFilePath =
-                    dest.getAbsolutePath().endsWith("/") ?
-                            dest.getAbsolutePath()+ relativePath :
-                            dest.getAbsolutePath()  + "/" + relativePath;
-
+            String convertedFilePath = FileUtil.toDestPath(target, f, dest);
             return new ResizeOrder(f, new File(convertedFilePath), size);
         };
     }

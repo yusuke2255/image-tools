@@ -26,4 +26,16 @@ public class FileUtil {
 
         return targetFiles;
     }
+
+    public static String toDestPath(File targetDir, File targetFile, File dest) {
+        String relativePath = targetFile.getAbsolutePath().replaceFirst(targetDir.getAbsolutePath(), "");
+        if (relativePath.startsWith("/")) {
+            // /foo/bar/image.jpg => foo/bar/image.jpg
+            relativePath = relativePath.replaceFirst("/", "");
+        }
+
+        return dest.getAbsolutePath().endsWith("/") ?
+                dest.getAbsolutePath()+ relativePath :
+                dest.getAbsolutePath()  + "/" + relativePath;
+    }
 }

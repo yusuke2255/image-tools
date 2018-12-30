@@ -6,10 +6,7 @@ import jp.co.kumaneko.image.usecase.ResizeResult;
 import jp.co.kumaneko.image.usecase.UseCase;
 import jp.co.kumaneko.image.util.FileUtil;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -62,7 +59,7 @@ class ResizeExecutor {
             throw new IllegalArgumentException(String.format("Illegal option error.'target' is not existed.[target=%s]", target.getAbsolutePath()));
         }
 
-        final Predicate<File> isTarget = isTarget(size);
+        final Predicate<File> isTarget = FileUtil.maxWidthBasedPredicate(size);
         if (target.isDirectory()) {
             Function<File, ResizeOrder> toOrders = toOrders(target, dest, size);
             return FileUtil.extractFiles(target)
@@ -84,21 +81,6 @@ class ResizeExecutor {
         return (f) -> {
             String convertedFilePath = FileUtil.toDestPath(target, f, dest);
             return new ResizeOrder(f, new File(convertedFilePath), size);
-        };
-    }
-
-    private static Predicate<File> isTarget(int thresholdWidth) {
-        return (file) -> {
-            try (FileInputStream in = new FileInputStream(file.getAbsoluteFile())) {
-                BufferedImage image = ImageIO.read(in);
-                if (image == null) {
-                    System.out.println(String.format("[WARN] This is not image file.[path=%s]", file.getAbsolutePath()));
-                    return false;
-                }
-                return image.getWidth() > thresholdWidth;
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
         };
     }
 }

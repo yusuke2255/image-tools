@@ -1,11 +1,15 @@
 package jp.co.kumaneko.image.util;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class FileUtil {
 
@@ -37,5 +41,24 @@ public class FileUtil {
         return dest.getAbsolutePath().endsWith("/") ?
                 dest.getAbsolutePath()+ relativePath :
                 dest.getAbsolutePath()  + "/" + relativePath;
+    }
+
+    public static Predicate<File> maxWidthBasedPredicate(int thresholdWidth) {
+        return (file) -> {
+            try (FileInputStream in = new FileInputStream(file.getAbsoluteFile())) {
+                BufferedImage image = ImageIO.read(in);
+                if (image == null) {
+                    System.out.println(String.format("[WARN] This is not image file.[path=%s]", file.getAbsolutePath()));
+                    return false;
+                }
+                return image.getWidth() > thresholdWidth;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+
+    public static Predicate<File> maxSizeBasedPredicate(long threshold) {
+        return (file) -> file.length() > threshold;
     }
 }

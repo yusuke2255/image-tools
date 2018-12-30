@@ -7,8 +7,10 @@ class Executor {
         switch (type) {
             case "resize":
                 new ResizeExecutor().execute(args);
+                break;
             case "optimize":
                 new OptimizeExecutor().execute(args);
+                break;
         }
     }
 }

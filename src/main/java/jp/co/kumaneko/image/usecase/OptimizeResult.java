@@ -12,11 +12,11 @@ public class OptimizeResult {
         this.target = target;
     }
 
-    public static OptimizeResult ofSuccess(File target) {
+    static OptimizeResult ofSuccess(File target) {
         return new OptimizeResult(target, null);
     }
 
-    public static OptimizeResult ofFailure(File target, Throwable e) {
+    static OptimizeResult ofFailure(File target, Throwable e) {
         return new OptimizeResult(target, e);
     }
 

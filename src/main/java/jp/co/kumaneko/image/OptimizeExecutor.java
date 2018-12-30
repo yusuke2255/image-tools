@@ -11,7 +11,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 class OptimizeExecutor {
-    void execute(String[] args) throws IllegalArgumentException {
+    void execute(String[] args) throws Exception {
         final ExtractedOrders extractedOrders = extractOptimizeOrders(args);
         final UseCase<OptimizeInputPort, OptimizeResult> optimize = new Optimize(extractedOrders.getTinifyApiKey());
 
@@ -22,7 +22,8 @@ class OptimizeExecutor {
                     try {
                         final OptimizeResult result = optimize.execute(in);
                         result.getException().ifPresent(e -> {
-                            throw new RuntimeException(String.format("Fail to optimize.[target=%s]", result.getTarget().getAbsolutePath()), e);
+                            e.printStackTrace();
+                            System.err.println(String.format("Fail to optimize.[target=%s]", result.getTarget().getAbsolutePath()));
                         });
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -30,8 +31,9 @@ class OptimizeExecutor {
                 });
     }
 
-    private ExtractedOrders extractOptimizeOrders(String[] args) throws IllegalArgumentException {
+    private ExtractedOrders extractOptimizeOrders(String[] args) throws IllegalArgumentException, InterruptedException {
         String tinifyApiKey = null;
+        boolean overwrite = false;
         File target = null;
         File dest = null;
         int threshold = 0;
@@ -52,6 +54,9 @@ class OptimizeExecutor {
                     break;
                 case "threshold":
                     threshold = Integer.parseInt(value);
+                    break;
+                case "overwrite":
+                    overwrite = "yes".equals(value);
                     break;
                 default:
                     System.out.println(String.format("Ignored illegal option [option=%s]", option));
@@ -74,12 +79,22 @@ class OptimizeExecutor {
 
         final Predicate<File> isTarget = FileUtil.maxSizeBasedPredicate(threshold);
         if (target.isDirectory()) {
-            Function<File, OptimizeOrder> toOrders = toOrders(tinifyApiKey, target, dest);
-            final List<OptimizeOrder> orders = FileUtil.extractFiles(target)
+            Function<File, OptimizeOrder> toOrders = toOrders(target, dest);
+            final List<File> targets = FileUtil.extractFiles(target)
                     .stream()
                     .parallel()
                     .filter(isTarget)
+                    .collect(Collectors.toList());
+
+            System.out.println(String.format("Target file count is %d", targets.size()));
+            Thread.sleep(10000L);
+
+            final Predicate<OptimizeOrder> removeOverwrite = removeOverwrite(overwrite);
+            final List<OptimizeOrder> orders = targets
+                    .stream()
+                    .parallel()
                     .map(toOrders)
+                    .filter(removeOverwrite)
                     .collect(Collectors.toList());
 
             return new ExtractedOrders(tinifyApiKey, orders);
@@ -92,10 +107,23 @@ class OptimizeExecutor {
         }
     }
 
-    private Function<File, OptimizeOrder> toOrders(String apiKey, File target, File dest) {
+    private Function<File, OptimizeOrder> toOrders(File target, File dest) {
         return (f) -> {
             String convertedFilePath = FileUtil.toDestPath(target, f, dest);
             return new OptimizeOrder(f, new File(convertedFilePath));
+        };
+    }
+
+    private Predicate<OptimizeOrder> removeOverwrite(boolean isOverwrite) {
+        return (order) -> {
+            if (isOverwrite) return true;
+
+            if (order.getDestinationFile().exists()){
+                System.out.println(String.format("This file is already existed.[dest=%s]", order.getDestinationFile().getAbsolutePath()));
+                return false;
+            }
+
+            return true;
         };
     }
 
@@ -108,11 +136,11 @@ class OptimizeExecutor {
             this.orders = orders;
         }
 
-        public String getTinifyApiKey() {
+        String getTinifyApiKey() {
             return tinifyApiKey;
         }
 
-        public List<OptimizeOrder> getOrders() {
+        List<OptimizeOrder> getOrders() {
             return orders;
         }
     }

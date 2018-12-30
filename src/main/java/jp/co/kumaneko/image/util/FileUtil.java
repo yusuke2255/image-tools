@@ -4,6 +4,8 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -45,8 +47,8 @@ public class FileUtil {
 
     public static Predicate<File> maxWidthBasedPredicate(int thresholdWidth) {
         return (file) -> {
-            try (FileInputStream in = new FileInputStream(file.getAbsoluteFile())) {
-                BufferedImage image = ImageIO.read(in);
+            try {
+                BufferedImage image = toImage(file);
                 if (image == null) {
                     System.out.println(String.format("[WARN] This is not image file.[path=%s]", file.getAbsolutePath()));
                     return false;
@@ -59,6 +61,23 @@ public class FileUtil {
     }
 
     public static Predicate<File> maxSizeBasedPredicate(long threshold) {
-        return (file) -> file.length() > threshold;
+        return (file) -> {
+            try {
+                BufferedImage image = toImage(file);
+                if (image == null) {
+                    System.out.println(String.format("[WARN] This is not image file.[path=%s]", file.getAbsolutePath()));
+                    return false;
+                }
+                return file.length() > threshold;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+
+    private static BufferedImage toImage(File file) throws IOException {
+        try (FileInputStream in = new FileInputStream(file.getAbsoluteFile())) {
+            return ImageIO.read(in);
+        }
     }
 }
